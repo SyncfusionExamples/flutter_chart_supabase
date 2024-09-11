@@ -1,5 +1,3 @@
-library event_calendar;
-
 import 'dart:math';
 
 import 'package:flutter/material.dart';
@@ -10,8 +8,8 @@ Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   await Supabase.initialize(
-    url: 'YOUR_SUPABASE_URL',
-    anonKey: 'YOUR_SUPABASE_ANON_KEY',
+    url: 'Your Supabase URL',
+    anonKey: 'Your Supabase Anon Key',
   );
   runApp(MyApp());
 }
@@ -22,23 +20,24 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return const MaterialApp(
-      title: 'Supabase Calendar',
+      title: 'Supabase Chart',
       debugShowCheckedModeBanner: false,
-      home: EventCalendar(),
+      home: LiveChart(),
     );
   }
 }
 
-class EventCalendar extends StatefulWidget {
-  const EventCalendar({super.key});
+class LiveChart extends StatefulWidget {
+  const LiveChart({super.key});
 
   @override
-  EventCalendarState createState() => EventCalendarState();
+  LiveChartState createState() => LiveChartState();
 }
 
-class EventCalendarState extends State<EventCalendar> {
-  List<ChartData> chartData = <ChartData>[];
-  final _future = supabase.from('gold_rate').stream(primaryKey: ['id']);
+class LiveChartState extends State<LiveChart> {
+  List<ChartData> _chartData = <ChartData>[];
+  final Stream<List<Map<String, dynamic>>> _future =
+      supabase.from('table_name').stream(primaryKey: ['id']);
   final SupabaseClient _client = Supabase.instance.client;
 
   @override
@@ -72,39 +71,23 @@ class EventCalendarState extends State<EventCalendar> {
                     return const Center(child: CircularProgressIndicator());
                   }
                   final countries = snapshot.data!;
-                  chartData =
+                  _chartData =
                       countries.map((e) => ChartData.fromSnapShot(e)).toList();
-                  return Padding(
-                    padding:
-                        const EdgeInsets.only(top: 18.0, left: 30, right: 30),
-                    child: SfCartesianChart(
-                      plotAreaBorderWidth: 0,
-                      primaryXAxis: DateTimeCategoryAxis(
-                        interval: 1,
-                        axisLabelFormatter: (args) {
-                          return ChartAxisLabel(
-                              args.text.replaceAll(' ', '\n'), args.textStyle);
-                        },
-                        majorGridLines: const MajorGridLines(width: 0),
-                      ),
-                      primaryYAxis: const NumericAxis(
-                        interval: 6,
-                        rangePadding: ChartRangePadding.additional,
-                      ),
-                      series: <CartesianSeries>[
-                        CandleSeries<ChartData, DateTime>(
-                          animationDuration: 0,
-                          dataSource: chartData,
-                          xValueMapper: (ChartData data, _) => data.timestamp,
-                          lowValueMapper: (ChartData data, _) => data.low,
-                          highValueMapper: (ChartData data, _) => data.high,
-                          openValueMapper: (ChartData data, _) => data.open,
-                          closeValueMapper: (ChartData data, _) => data.close,
-                          // dataLabelSettings:
-                          //     const DataLabelSettings(isVisible: true),
-                        )
-                      ],
+                  return SfCartesianChart(
+                    primaryXAxis: const DateTimeCategoryAxis(),
+                    primaryYAxis: const NumericAxis(
+                      interval: 4,
                     ),
+                    series: <CartesianSeries>[
+                      ColumnSeries<ChartData, DateTime>(
+                        animationDuration: 0,
+                        dataSource: _chartData,
+                        xValueMapper: (ChartData data, int index) =>
+                            data.timestamp,
+                        yValueMapper: (ChartData data, int index) =>
+                            data.yValue,
+                      )
+                    ],
                   );
                 },
               ),
@@ -116,25 +99,30 @@ class EventCalendarState extends State<EventCalendar> {
                 children: [
                   TextButton(
                     onPressed: () async {
-                      await _client.from('gold_rate').insert({
-                        'id': chartData.isEmpty ? 1 : chartData.length + 1,
-                        'date': chartData.last.timestamp
+                      await _client.from('table_name').insert({
+                        'id': _chartData.isEmpty ? 1 : _chartData.length + 1,
+                        'date': _chartData.last.timestamp
                             .add(const Duration(days: 1))
                             .toIso8601String(),
-                        'low': 106.4,
-                        'high': 112.5,
-                        'open': 107.2,
-                        'close': 110.9,
+                        'yValue': _getRandomInt(105, 120),
                       });
                     },
                     child: const Text('Add data point at last'),
                   ),
                   TextButton(
                     onPressed: () async {
+                      await _client.from('table_name').update({
+                        'yValue': _getRandomInt(105, 120),
+                      }).eq('id', 5);
+                    },
+                    child: const Text('Update y value of 5th segment'),
+                  ),
+                  TextButton(
+                    onPressed: () async {
                       await _client
-                          .from('gold_rate')
+                          .from('table_name')
                           .delete()
-                          .eq('id', chartData.last.id);
+                          .eq('id', _chartData.last.id);
                     },
                     child: const Text('Remove data point at last'),
                   ),
@@ -153,30 +141,22 @@ class EventCalendarState extends State<EventCalendar> {
   }
 }
 
+// Custom data model class with constructor to convert the data from snapshot
 class ChartData {
   ChartData({
     required this.id,
     required this.timestamp,
-    required this.open,
-    required this.close,
-    required this.high,
-    required this.low,
+    required this.yValue,
   });
 
   num id;
   DateTime timestamp;
-  num open;
-  num close;
-  num high;
-  num low;
+  num yValue;
 
   static ChartData fromSnapShot(Map<String, dynamic> dataSnapshot) {
     return ChartData(
         id: dataSnapshot['id'],
         timestamp: DateTime.parse(dataSnapshot['date']),
-        open: dataSnapshot['open'],
-        close: dataSnapshot['close'],
-        high: dataSnapshot['high'],
-        low: dataSnapshot['low']);
+        yValue: dataSnapshot['yValue']);
   }
 }
