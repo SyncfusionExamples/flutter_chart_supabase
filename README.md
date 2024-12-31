@@ -8,6 +8,8 @@ This repository contains a sample that demonstrates how to integrate the Supabas
 This project used the following Syncfusion widget(s):
 * [SfCartesianChart](https://www.syncfusion.com/flutter-widgets/flutter-charts)
 
+* Please refer the Blog through this [link](https://www.syncfusion.com/blogs/post/integrate-supabase-and-flutter-charts).
+
 ## Supported platforms
 
 Refer to the following link to know about the supported platform - [Platforms](https://help.syncfusion.com/flutter/system-requirements#supported-platforms)
